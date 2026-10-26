@@ -15,6 +15,7 @@
 local Blitbuffer = require("ffi/blitbuffer")
 local Device = require("device")
 local Event = require("ui/event")
+local ffiutil = require("ffi/util")
 local Font = require("ui/font")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Geom = require("ui/geometry")
@@ -33,14 +34,21 @@ local _ = require("gettext")
 
 local Screen = Device.screen
 
-local BIGMENU_VERSION = "1.0.2"
+-- Giây dạng thập phân từ đồng hồ đơn điệu (nhận diện chạm 2 lần).
+local function nowSeconds()
+    local ok, s, u = pcall(ffiutil.gettime)
+    if ok and s then return s + u / 1000000 end
+    return os.time()
+end
+
+local BIGMENU_VERSION = "1.0.3"
 local OTA_BASE = "https://raw.githubusercontent.com/mitokm/koreader-bigmenu/main/"
 local PATCH_NAME = "2-bigmenu.lua"
 
 -- Nội dung patch đi kèm (bản sao y hệt patches/2-bigmenu.lua trong
 -- repo — script đóng gói tự chèn vào đây, đừng sửa tay dòng dưới).
 local PATCH_SOURCE = [==[
--- BigMenu patch | version: 1.0.2
+-- BigMenu patch | version: 1.0.3
 -- ------------------------------------------------------------------
 -- BigMenu — phóng to TOÀN BỘ menu của KOReader (user patch chính thức).
 --
@@ -206,9 +214,35 @@ end
 local HomePanel = InputContainer:extend{
     covers_fullscreen = true,
     tiles = nil, -- mảng { icon=, label=, fn= }
+    tile_widgets = nil, -- các Tile đã dựng (để nhận biết chạm trúng ô)
+    on_exit = nil, -- gọi khi người dùng chạm 2 lần vào nền
+    hint = nil, -- dòng ghi chú dưới lưới ô
+    _last_bg_tap = nil,
 }
 
-function HomePanel:onSwallowTap() return true end
+-- Bảng nuốt mọi chạm để thao tác không lọt xuống màn hình dưới.
+-- Riêng việc THOÁT bảng bằng nền: phải chạm 2 lần liên tiếp (≤ 0,6 s)
+-- như đồng hồ Sage Clock — chạm 1 lần không làm gì cả.
+function HomePanel:onSwallowTap(arg, ges)
+    if ges and ges.pos and self.tile_widgets then
+        for _, w in ipairs(self.tile_widgets) do
+            local d = w.dimen
+            if d and d.w and d.w > 0
+                and ges.pos.x >= d.x and ges.pos.x < d.x + d.w
+                and ges.pos.y >= d.y and ges.pos.y < d.y + d.h then
+                return true -- chạm trúng ô: ô tự xử lý
+            end
+        end
+    end
+    local now = nowSeconds()
+    if self._last_bg_tap and (now - self._last_bg_tap) <= 0.6 then
+        self._last_bg_tap = nil
+        if self.on_exit then self.on_exit() end
+    else
+        self._last_bg_tap = now
+    end
+    return true
+end
 function HomePanel:onSwallowSwipe() return true end
 
 function HomePanel:init()
@@ -230,6 +264,7 @@ function HomePanel:init()
         VerticalSpan:new{ width = Screen:scaleBySize(26) },
     }
     local row = HorizontalGroup:new{}
+    self.tile_widgets = {}
     for i, def in ipairs(self.tiles or {}) do
         if i > 1 and (i - 1) % cols == 0 then
             rows[#rows + 1] = row
@@ -238,15 +273,24 @@ function HomePanel:init()
         elseif i > 1 then
             row[#row + 1] = HorizontalSpan:new{ width = math.floor(W * 0.04) }
         end
-        row[#row + 1] = Tile:new{
+        local tile = Tile:new{
             icon = def.icon,
             label = def.label,
             tile_w = tile_w,
             tile_h = tile_h,
             tap_callback = def.fn,
         }
+        self.tile_widgets[#self.tile_widgets + 1] = tile
+        row[#row + 1] = tile
     end
     rows[#rows + 1] = row
+    if self.hint then
+        rows[#rows + 1] = VerticalSpan:new{ width = Screen:scaleBySize(22) }
+        rows[#rows + 1] = TextWidget:new{
+            text = self.hint,
+            face = Font:getFace("cfont", 19),
+        }
+    end
     self[1] = CenterContainer:new{
         dimen = self.dimen,
         FrameContainer:new{
@@ -349,7 +393,7 @@ end
 -- Mở bảng biểu tượng: lưới ô to cho các việc hay dùng nhất.
 -- Biểu tượng dùng bộ FontAwesome (vùng mã riêng U+F0xx); KOReader có
 -- sẵn font ký hiệu nerdfonts làm font dự phòng nên vẽ được.
-function BigMenu:showHomePanel()
+function BigMenu:showHomePanel(close_armed)
     local plugin = self
     local panel
     -- act(): đóng bảng rồi mới chạy — dùng cho các ô CHUYỂN MÀN HÌNH.
@@ -381,6 +425,11 @@ function BigMenu:showHomePanel()
         { icon = "\239\128\138", label = _("Bộ sưu tập"), fn = act(function()
             UIManager:broadcastEvent(Event:new("ShowColl"))
         end) },
+        { icon = "\239\128\151", label = _("Đồng hồ"), fn = stay(function()
+            -- Mở Sage Clock (nếu đã cài) phủ lên trên bảng; thoát đồng
+            -- hồ bằng chạm 2 lần là quay về đúng bảng này.
+            UIManager:broadcastEvent(Event:new("ShowSageClock"))
+        end) },
         { icon = "\239\131\171", label = _("Đèn nền"), fn = stay(function()
             Device:getPowerDevice():toggleFrontlight()
         end) },
@@ -397,11 +446,33 @@ function BigMenu:showHomePanel()
             UIManager:close(panel)
             UIManager:scheduleIn(0.15, function() plugin:showHomePanel() end)
         end },
-        { icon = "\239\128\141", label = _("Đóng bảng"), fn = function()
-            UIManager:close(panel)
+        { icon = "\239\128\141", label = close_armed
+            and _("Chạm lần nữa để ĐÓNG") or _("Đóng bảng"), fn = function()
+            -- Ô Đóng cũng phải chạm 2 lần (tránh lỡ tay thoát mất home):
+            -- lần 1 "lên cò" + vẽ lại bảng với nhãn mới, lần 2 trong
+            -- vòng 1,5 giây mới đóng thật.
+            local now = nowSeconds()
+            if close_armed and plugin._close_armed_at
+                and (now - plugin._close_armed_at) <= 1.5 then
+                plugin._close_armed_at = nil
+                UIManager:close(panel)
+            else
+                plugin._close_armed_at = now
+                UIManager:close(panel)
+                UIManager:scheduleIn(0.1, function()
+                    plugin:showHomePanel(true)
+                end)
+            end
         end },
     }
-    panel = HomePanel:new{ tiles = tiles }
+    panel = HomePanel:new{
+        tiles = tiles,
+        hint = _("Thoát bảng: chạm 2 lần vào nền hoặc ô Đóng"),
+    }
+    panel.on_exit = function()
+        plugin._close_armed_at = nil
+        UIManager:close(panel)
+    end
     UIManager:show(panel, "full")
 end
 
