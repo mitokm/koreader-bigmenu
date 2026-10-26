@@ -4,6 +4,19 @@ All notable changes to KOReader Big Menu are documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [1.0.3] \u2014 2026-10-26
+
+### Added
+- **Clock tile**: opens the Sage Clock screensaver (if that plugin is
+  installed) on top of the panel \u2014 exiting the clock with its
+  double-tap lands you right back on the panel.
+
+### Changed
+- **Leaving the panel now takes a double-tap**, like the Sage Clock:
+  double-tap the panel background, or tap the Close tile twice (the
+  first tap arms it and relabels it). A single stray tap can no
+  longer dismiss your home screen.
+
 ## [1.0.2] \u2014 2026-10-26
 
 ### Added
