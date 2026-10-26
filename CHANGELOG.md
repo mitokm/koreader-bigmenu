@@ -4,6 +4,15 @@ All notable changes to KOReader Big Menu are documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [1.0.4] \u2014 2026-10-26
+
+### Changed
+- **Close is now a small frameless button** (\u2715 + label in a row,
+  about a third of a tile's height, no border box) instead of a full
+  tile \u2014 first on-device styling feedback.
+- The tile grid sits a little lower under the title, so the panel
+  reads more balanced.
+
 ## [1.0.3] \u2014 2026-10-26
 
 ### Added
