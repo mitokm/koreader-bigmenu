@@ -41,14 +41,14 @@ local function nowSeconds()
     return os.time()
 end
 
-local BIGMENU_VERSION = "1.0.3"
+local BIGMENU_VERSION = "1.0.4"
 local OTA_BASE = "https://raw.githubusercontent.com/mitokm/koreader-bigmenu/main/"
 local PATCH_NAME = "2-bigmenu.lua"
 
 -- Nội dung patch đi kèm (bản sao y hệt patches/2-bigmenu.lua trong
 -- repo — script đóng gói tự chèn vào đây, đừng sửa tay dòng dưới).
 local PATCH_SOURCE = [==[
--- BigMenu patch | version: 1.0.3
+-- BigMenu patch | version: 1.0.4
 -- ------------------------------------------------------------------
 -- BigMenu — phóng to TOÀN BỘ menu của KOReader (user patch chính thức).
 --
@@ -208,6 +208,45 @@ function Tile:onTapSelect()
 end
 
 ----------------------------------------------------------------------
+-- Nút Đóng: nhỏ gọn, KHÔNG khung — chỉ còn dấu ✕ + chữ nằm ngang
+----------------------------------------------------------------------
+
+local CloseTile = InputContainer:extend{
+    label = "",
+    tap_callback = nil,
+    tile_w = 0,
+    tile_h = 0,
+}
+
+function CloseTile:init()
+    self.dimen = Geom:new{ w = self.tile_w, h = self.tile_h, x = 0, y = 0 }
+    self.ges_events = {
+        TapSelect = { GestureRange:new{ ges = "tap", range = self.dimen } },
+    }
+    self[1] = CenterContainer:new{
+        dimen = Geom:new{ w = self.tile_w, h = self.tile_h },
+        HorizontalGroup:new{
+            align = "center",
+            TextWidget:new{
+                text = "\239\128\141",
+                face = Font:getFace("cfont", 30),
+            },
+            HorizontalSpan:new{ width = Screen:scaleBySize(14) },
+            TextWidget:new{
+                text = self.label,
+                face = Font:getFace("cfont", 25),
+                bold = true,
+            },
+        },
+    }
+end
+
+function CloseTile:onTapSelect()
+    if self.tap_callback then self.tap_callback() end
+    return true
+end
+
+----------------------------------------------------------------------
 -- Bảng chính: lưới ô biểu tượng toàn màn hình
 ----------------------------------------------------------------------
 
@@ -261,7 +300,7 @@ function HomePanel:init()
             face = Font:getFace("cfont", 34),
             bold = true,
         },
-        VerticalSpan:new{ width = Screen:scaleBySize(26) },
+        VerticalSpan:new{ width = Screen:scaleBySize(48) },
     }
     local row = HorizontalGroup:new{}
     self.tile_widgets = {}
@@ -273,13 +312,24 @@ function HomePanel:init()
         elseif i > 1 then
             row[#row + 1] = HorizontalSpan:new{ width = math.floor(W * 0.04) }
         end
-        local tile = Tile:new{
-            icon = def.icon,
-            label = def.label,
-            tile_w = tile_w,
-            tile_h = tile_h,
-            tap_callback = def.fn,
-        }
+        local tile
+        if def.plain then
+            -- Ô dạng nút gọn không khung (nút Đóng): thấp hơn hẳn ô thường.
+            tile = CloseTile:new{
+                label = def.label,
+                tile_w = tile_w,
+                tile_h = Screen:scaleBySize(64),
+                tap_callback = def.fn,
+            }
+        else
+            tile = Tile:new{
+                icon = def.icon,
+                label = def.label,
+                tile_w = tile_w,
+                tile_h = tile_h,
+                tap_callback = def.fn,
+            }
+        end
         self.tile_widgets[#self.tile_widgets + 1] = tile
         row[#row + 1] = tile
     end
@@ -446,7 +496,7 @@ function BigMenu:showHomePanel(close_armed)
             UIManager:close(panel)
             UIManager:scheduleIn(0.15, function() plugin:showHomePanel() end)
         end },
-        { icon = "\239\128\141", label = close_armed
+        { icon = "\239\128\141", plain = true, label = close_armed
             and _("Chạm lần nữa để ĐÓNG") or _("Đóng bảng"), fn = function()
             -- Ô Đóng cũng phải chạm 2 lần (tránh lỡ tay thoát mất home):
             -- lần 1 "lên cò" + vẽ lại bảng với nhãn mới, lần 2 trong
