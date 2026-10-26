@@ -4,6 +4,15 @@ All notable changes to KOReader Big Menu are documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [1.0.5] \u2014 2026-10-26
+
+### Fixed
+- **Rotation**: the panel kept its portrait layout after rotating to
+  landscape, so the bottom rows were cut off. The panel now rebuilds
+  its grid whenever the screen rotates: 4 columns with shorter tiles
+  in landscape, the familiar 2 columns in portrait \u2014 everything
+  stays on screen in both orientations.
+
 ## [1.0.4] \u2014 2026-10-26
 
 ### Changed

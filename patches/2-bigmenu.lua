@@ -1,4 +1,4 @@
--- BigMenu patch | version: 1.0.4
+-- BigMenu patch | version: 1.0.5
 -- ------------------------------------------------------------------
 -- BigMenu — phóng to TOÀN BỘ menu của KOReader (user patch chính thức).
 --

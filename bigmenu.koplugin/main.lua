@@ -41,14 +41,14 @@ local function nowSeconds()
     return os.time()
 end
 
-local BIGMENU_VERSION = "1.0.4"
+local BIGMENU_VERSION = "1.0.5"
 local OTA_BASE = "https://raw.githubusercontent.com/mitokm/koreader-bigmenu/main/"
 local PATCH_NAME = "2-bigmenu.lua"
 
 -- Nội dung patch đi kèm (bản sao y hệt patches/2-bigmenu.lua trong
 -- repo — script đóng gói tự chèn vào đây, đừng sửa tay dòng dưới).
 local PATCH_SOURCE = [==[
--- BigMenu patch | version: 1.0.4
+-- BigMenu patch | version: 1.0.5
 -- ------------------------------------------------------------------
 -- BigMenu — phóng to TOÀN BỘ menu của KOReader (user patch chính thức).
 --
@@ -285,15 +285,27 @@ end
 function HomePanel:onSwallowSwipe() return true end
 
 function HomePanel:init()
-    local W = Screen:getWidth()
-    self.dimen = Geom:new{ x = 0, y = 0, w = W, h = Screen:getHeight() }
+    self:buildLayout()
+end
+
+-- Dựng lại toàn bộ lưới theo kích thước màn hình HIỆN TẠI. Gọi lúc
+-- mở bảng và mỗi khi máy xoay (onSetDimensions) — trước đây bảng chỉ
+-- tính kích thước một lần lúc tạo nên xoay ngang là vẫn giữ khổ dọc,
+-- tràn mất phần dưới.
+function HomePanel:buildLayout(dimen)
+    local W = (dimen and dimen.w) or Screen:getWidth()
+    local H = (dimen and dimen.h) or Screen:getHeight()
+    self.dimen = Geom:new{ x = 0, y = 0, w = W, h = H }
     self.ges_events = {
         SwallowTap = { GestureRange:new{ ges = "tap", range = self.dimen } },
         SwallowSwipe = { GestureRange:new{ ges = "swipe", range = self.dimen } },
     }
-    local cols = 2
-    local tile_w = math.floor(W * 0.42)
-    local tile_h = Screen:scaleBySize(150)
+    -- Ngang: 4 cột, ô thấp hơn để vừa chiều cao; Dọc: 2 cột như cũ.
+    local landscape = W > H
+    local cols = landscape and 4 or 2
+    local tile_w = math.floor(W * (landscape and 0.225 or 0.42))
+    local tile_h = Screen:scaleBySize(landscape and 125 or 150)
+    local gap = math.floor(W * (landscape and 0.03 or 0.04))
     local rows = {
         TextWidget:new{
             text = _("Bảng chính"),
@@ -310,14 +322,15 @@ function HomePanel:init()
             rows[#rows + 1] = VerticalSpan:new{ width = Screen:scaleBySize(18) }
             row = HorizontalGroup:new{}
         elseif i > 1 then
-            row[#row + 1] = HorizontalSpan:new{ width = math.floor(W * 0.04) }
+            row[#row + 1] = HorizontalSpan:new{ width = gap }
         end
         local tile
         if def.plain then
-            -- Ô dạng nút gọn không khung (nút Đóng): thấp hơn hẳn ô thường.
+            -- Ô dạng nút gọn không khung (nút Đóng): thấp hơn hẳn ô
+            -- thường; ở khổ ngang cho rộng gấp đôi một ô để chữ vừa.
             tile = CloseTile:new{
                 label = def.label,
-                tile_w = tile_w,
+                tile_w = landscape and (tile_w * 2 + gap) or tile_w,
                 tile_h = Screen:scaleBySize(64),
                 tap_callback = def.fn,
             }
@@ -350,6 +363,13 @@ function HomePanel:init()
             VerticalGroup:new{ align = "center", unpack(rows) },
         },
     }
+end
+
+-- Máy xoay trong lúc bảng đang mở: dựng lại lưới theo khổ mới.
+function HomePanel:onSetDimensions(dimen)
+    self:buildLayout(dimen)
+    UIManager:setDirty(self, "full")
+    return true
 end
 
 ----------------------------------------------------------------------
