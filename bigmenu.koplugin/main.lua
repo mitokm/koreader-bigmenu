@@ -33,14 +33,14 @@ local _ = require("gettext")
 
 local Screen = Device.screen
 
-local BIGMENU_VERSION = "1.0.0"
+local BIGMENU_VERSION = "1.0.1"
 local OTA_BASE = "https://raw.githubusercontent.com/mitokm/koreader-bigmenu/main/"
 local PATCH_NAME = "2-bigmenu.lua"
 
 -- Nội dung patch đi kèm (bản sao y hệt patches/2-bigmenu.lua trong
 -- repo — script đóng gói tự chèn vào đây, đừng sửa tay dòng dưới).
 local PATCH_SOURCE = [==[
--- BigMenu patch | version: 1.0.0
+-- BigMenu patch | version: 1.0.1
 -- ------------------------------------------------------------------
 -- BigMenu — phóng to TOÀN BỘ menu của KOReader (user patch chính thức).
 --
@@ -177,14 +177,16 @@ function Tile:init()
             dimen = Geom:new{ w = inner, h = inner_h },
             VerticalGroup:new{
                 align = "center",
+                -- LƯU Ý: Font:getFace TỰ scale theo DPI — truyền số thô,
+                -- bọc scaleBySize ở ngoài sẽ bị phóng to 2 lần.
                 TextWidget:new{
                     text = self.icon,
-                    face = Font:getFace("cfont", Screen:scaleBySize(60)),
+                    face = Font:getFace("cfont", 46),
                 },
                 VerticalSpan:new{ width = Screen:scaleBySize(12) },
                 TextWidget:new{
                     text = self.label,
-                    face = Font:getFace("cfont", Screen:scaleBySize(30)),
+                    face = Font:getFace("cfont", 25),
                     bold = true,
                 },
             },
@@ -217,12 +219,12 @@ function HomePanel:init()
         SwallowSwipe = { GestureRange:new{ ges = "swipe", range = self.dimen } },
     }
     local cols = 2
-    local tile_w = math.floor(W * 0.44)
+    local tile_w = math.floor(W * 0.42)
     local tile_h = Screen:scaleBySize(150)
     local rows = {
         TextWidget:new{
             text = _("Bảng chính"),
-            face = Font:getFace("cfont", Screen:scaleBySize(38)),
+            face = Font:getFace("cfont", 34),
             bold = true,
         },
         VerticalSpan:new{ width = Screen:scaleBySize(26) },
@@ -250,7 +252,7 @@ function HomePanel:init()
         FrameContainer:new{
             background = Blitbuffer.COLOR_WHITE,
             bordersize = Screen:scaleBySize(3),
-            padding = Screen:scaleBySize(24),
+            padding = Screen:scaleBySize(20),
             VerticalGroup:new{ align = "center", unpack(rows) },
         },
     }
@@ -314,27 +316,15 @@ end
 
 function BigMenu:addToMainMenu(menu_items)
     self:ensurePatch()
+    -- Đặt ở tab "main" (tab cuối, ít mục nhất) và chạm là MỞ BẢNG NGAY —
+    -- không chôn trong submenu "More tools" nữa (khó tìm). Cập nhật
+    -- OTA làm ngay trong bảng, qua ô "Cập nhật bản mới".
     menu_items.bigmenu = {
         text = _("Big Menu — bảng biểu tượng"),
-        sorting_hint = "more_tools",
-        sub_item_table = {
-            {
-                text = _("Mở bảng biểu tượng"),
-                callback = function()
-                    self:showHomePanel()
-                end,
-            },
-            {
-                text = _("Cập nhật bản mới (OTA, cần Wi-Fi)"),
-                callback = function()
-                    self:checkForUpdate()
-                end,
-            },
-            {
-                text = _("Phiên bản: " .. BIGMENU_VERSION),
-                callback = function() end,
-            },
-        },
+        sorting_hint = "main",
+        callback = function()
+            self:showHomePanel()
+        end,
     }
 end
 

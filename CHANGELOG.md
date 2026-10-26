@@ -4,6 +4,22 @@ All notable changes to KOReader Big Menu are documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [1.0.1] \u2014 2026-10-26
+
+### Fixed
+- **Panel layout overflow on 300 dpi devices**: icon and label sizes
+  were passed through `Screen:scaleBySize()` *and* scaled again inside
+  `Font:getFace()`, so tiles rendered roughly double size and
+  overlapped (first on-device report, Kobo Sage). Sizes are now raw
+  values, as `Font:getFace()` expects; grid width and frame padding
+  rebalanced to fit the screen.
+
+### Changed
+- **The menu entry moved**: it now sits in the **main** menu tab and
+  opens the panel with a single tap, instead of being buried in the
+  *Tools \u2192 More tools* submenu. OTA update lives on the panel's
+  Update tile.
+
 ## [1.0.0] — 2026-10-25
 
 First public release. Split out of the Sage Clock project after the
