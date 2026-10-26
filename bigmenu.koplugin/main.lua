@@ -33,14 +33,14 @@ local _ = require("gettext")
 
 local Screen = Device.screen
 
-local BIGMENU_VERSION = "1.0.1"
+local BIGMENU_VERSION = "1.0.2"
 local OTA_BASE = "https://raw.githubusercontent.com/mitokm/koreader-bigmenu/main/"
 local PATCH_NAME = "2-bigmenu.lua"
 
 -- Nội dung patch đi kèm (bản sao y hệt patches/2-bigmenu.lua trong
 -- repo — script đóng gói tự chèn vào đây, đừng sửa tay dòng dưới).
 local PATCH_SOURCE = [==[
--- BigMenu patch | version: 1.0.1
+-- BigMenu patch | version: 1.0.2
 -- ------------------------------------------------------------------
 -- BigMenu — phóng to TOÀN BỘ menu của KOReader (user patch chính thức).
 --
@@ -273,6 +273,24 @@ function BigMenu:init()
     if self.ui.dispatcher then
         self:onDispatcherRegisterActions()
     end
+    -- Chế độ Trang chủ (khóa bigmenu_auto_home, mặc định BẬT): ở File
+    -- Manager, tự mở bảng ngay khi FM khởi tạo xong. FM được tạo mới
+    -- hoàn toàn mỗi lần mở KOReader và mỗi lần thoát sách quay về, nên
+    -- bảng hiện như một màn hình chính. Trong Reader không tự mở.
+    if self.ui.file_chooser and self.ui.registerPostInitCallback then
+        local plugin = self
+        self.ui:registerPostInitCallback(function()
+            if plugin:isAutoHome() then
+                UIManager:nextTick(function()
+                    pcall(function() plugin:showHomePanel() end)
+                end)
+            end
+        end)
+    end
+end
+
+function BigMenu:isAutoHome()
+    return G_reader_settings:readSetting("bigmenu_auto_home") ~= false
 end
 
 function BigMenu:onDispatcherRegisterActions()
@@ -334,11 +352,17 @@ end
 function BigMenu:showHomePanel()
     local plugin = self
     local panel
+    -- act(): đóng bảng rồi mới chạy — dùng cho các ô CHUYỂN MÀN HÌNH.
     local function act(fn)
         return function()
             UIManager:close(panel)
             UIManager:scheduleIn(0.15, fn)
         end
+    end
+    -- stay(): chạy NGAY trên bảng, bảng vẫn mở — dùng cho các ô dạng
+    -- công tắc/hộp thoại, để quay lại là thấy bảng ngay như màn hình chính.
+    local function stay(fn)
+        return function() pcall(fn) end
     end
     local tiles = {
         { icon = "\239\128\173", label = _("Thư viện sách"), fn = act(function()
@@ -357,18 +381,22 @@ function BigMenu:showHomePanel()
         { icon = "\239\128\138", label = _("Bộ sưu tập"), fn = act(function()
             UIManager:broadcastEvent(Event:new("ShowColl"))
         end) },
-        { icon = "\239\131\171", label = _("Đèn nền"), fn = act(function()
-            pcall(function() Device:getPowerDevice():toggleFrontlight() end)
+        { icon = "\239\131\171", label = _("Đèn nền"), fn = stay(function()
+            Device:getPowerDevice():toggleFrontlight()
         end) },
-        { icon = "\239\135\171", label = _("Wi-Fi: bật/tắt"), fn = act(function()
-            pcall(function()
-                local NM = require("ui/network/manager")
-                if NM:isWifiOn() then NM:toggleWifiOff() else NM:toggleWifiOn() end
-            end)
+        { icon = "\239\135\171", label = _("Wi-Fi: bật/tắt"), fn = stay(function()
+            local NM = require("ui/network/manager")
+            if NM:isWifiOn() then NM:toggleWifiOff() else NM:toggleWifiOn() end
         end) },
-        { icon = "\239\128\161", label = _("Cập nhật bản mới"), fn = act(function()
+        { icon = "\239\128\161", label = _("Cập nhật bản mới"), fn = stay(function()
             plugin:checkForUpdate()
         end) },
+        { icon = "\239\128\149", label = plugin:isAutoHome()
+            and _("Trang chủ: Đang bật") or _("Trang chủ: Đang tắt"), fn = function()
+            G_reader_settings:saveSetting("bigmenu_auto_home", not plugin:isAutoHome())
+            UIManager:close(panel)
+            UIManager:scheduleIn(0.15, function() plugin:showHomePanel() end)
+        end },
         { icon = "\239\128\141", label = _("Đóng bảng"), fn = function()
             UIManager:close(panel)
         end },

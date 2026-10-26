@@ -4,6 +4,21 @@ All notable changes to KOReader Big Menu are documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [1.0.2] \u2014 2026-10-26
+
+### Added
+- **Home mode** (setting `bigmenu_auto_home`, ON by default): the
+  panel opens by itself whenever the File Manager appears \u2014 at
+  KOReader start and every time you close a book and come back \u2014
+  so it works like a home screen. Toggle it with the new
+  *Trang ch\u1ee7 (Home)* tile on the panel.
+
+### Changed
+- Switch/dialogue tiles (Frontlight, Wi-Fi, Update) no longer close
+  the panel: they act on top of it, and closing their dialogue
+  returns you to the panel. Navigation tiles still close the panel
+  and go where you tapped.
+
 ## [1.0.1] \u2014 2026-10-26
 
 ### Fixed
