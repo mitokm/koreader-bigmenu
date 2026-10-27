@@ -1,6 +1,6 @@
 # KOReader Big Menu — bảng biểu tượng ô to & menu phóng to cho máy đọc sách e-ink
 
-![Version](https://img.shields.io/badge/version-1.0.5-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-KOReader-lightgrey.svg)
 

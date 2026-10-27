@@ -4,6 +4,16 @@ All notable changes to KOReader Big Menu are documented in this file.
 The format is based on Keep a Changelog, and this project adheres to
 Semantic Versioning.
 
+## [1.0.6] \u2014 2026-10-27
+
+### Fixed
+- **Tile labels overflowed their tiles in landscape** (e.g.
+  \u201cS\u00e1ch \u0111\u1ecdc g\u1ea7n \u0111\u00e2y\u201d bled into the
+  neighbouring tiles): labels are now drawn with a fixed-width text
+  box, so a long label **wraps to a second line inside its tile**
+  instead of spilling out. Landscape tiles also got a bit more room
+  (narrower gaps, taller tiles) and a slightly smaller label font.
+
 ## [1.0.5] \u2014 2026-10-26
 
 ### Fixed

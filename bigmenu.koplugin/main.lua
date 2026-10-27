@@ -25,6 +25,7 @@ local HorizontalSpan = require("ui/widget/horizontalspan")
 local InfoMessage = require("ui/widget/infomessage")
 local InputContainer = require("ui/widget/container/inputcontainer")
 local CenterContainer = require("ui/widget/container/centercontainer")
+local TextBoxWidget = require("ui/widget/textboxwidget")
 local TextWidget = require("ui/widget/textwidget")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
@@ -41,14 +42,14 @@ local function nowSeconds()
     return os.time()
 end
 
-local BIGMENU_VERSION = "1.0.5"
+local BIGMENU_VERSION = "1.0.6"
 local OTA_BASE = "https://raw.githubusercontent.com/mitokm/koreader-bigmenu/main/"
 local PATCH_NAME = "2-bigmenu.lua"
 
 -- Nội dung patch đi kèm (bản sao y hệt patches/2-bigmenu.lua trong
 -- repo — script đóng gói tự chèn vào đây, đừng sửa tay dòng dưới).
 local PATCH_SOURCE = [==[
--- BigMenu patch | version: 1.0.5
+-- BigMenu patch | version: 1.0.6
 -- ------------------------------------------------------------------
 -- BigMenu — phóng to TOÀN BỘ menu của KOReader (user patch chính thức).
 --
@@ -166,6 +167,7 @@ end
 local Tile = InputContainer:extend{
     icon = "",
     label = "",
+    label_size = 25,
     tap_callback = nil,
     tile_w = 0,
     tile_h = 0,
@@ -192,9 +194,13 @@ function Tile:init()
                     face = Font:getFace("cfont", 46),
                 },
                 VerticalSpan:new{ width = Screen:scaleBySize(12) },
-                TextWidget:new{
+                -- TextBoxWidget có width cố định: nhãn dài TỰ XUỐNG
+                -- DÒNG trong ô thay vì tràn ra ngoài như TextWidget.
+                TextBoxWidget:new{
                     text = self.label,
-                    face = Font:getFace("cfont", 25),
+                    face = Font:getFace("cfont", self.label_size),
+                    width = inner,
+                    alignment = "center",
                     bold = true,
                 },
             },
@@ -300,12 +306,14 @@ function HomePanel:buildLayout(dimen)
         SwallowTap = { GestureRange:new{ ges = "tap", range = self.dimen } },
         SwallowSwipe = { GestureRange:new{ ges = "swipe", range = self.dimen } },
     }
-    -- Ngang: 4 cột, ô thấp hơn để vừa chiều cao; Dọc: 2 cột như cũ.
+    -- Ngang: 4 cột; Dọc: 2 cột như cũ. Khe ngang ở khổ ngang để hẹp
+    -- (0,016W) cho các ô rộng tối đa mà tổng hàng vẫn lọt khung.
     local landscape = W > H
     local cols = landscape and 4 or 2
     local tile_w = math.floor(W * (landscape and 0.225 or 0.42))
-    local tile_h = Screen:scaleBySize(landscape and 125 or 150)
-    local gap = math.floor(W * (landscape and 0.03 or 0.04))
+    local tile_h = Screen:scaleBySize(landscape and 150 or 160)
+    local gap = math.floor(W * (landscape and 0.016 or 0.04))
+    local label_size = landscape and 22 or 25
     local rows = {
         TextWidget:new{
             text = _("Bảng chính"),
@@ -338,6 +346,7 @@ function HomePanel:buildLayout(dimen)
             tile = Tile:new{
                 icon = def.icon,
                 label = def.label,
+                label_size = label_size,
                 tile_w = tile_w,
                 tile_h = tile_h,
                 tap_callback = def.fn,
